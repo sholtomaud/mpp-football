@@ -77,3 +77,4 @@ This document breaks down the features from `REQUIREMENTS.md` into actionable ta
 - [ ] **Determinism:** Implement seedable randomness to ensure simulations can be reproduced for analysis.
 - [ ] **Code Organization:** As the codebase grows, refactor the JavaScript into separate files using ES6 Modules.
 - [ ] **Pitch Geometry:** Implement pitch markings (penalty boxes, center circle) as actual control geometry that influences player behavior, not just as decoration.
+- [ ] **GitHub Actions Deployment:** Set up a GitHub Actions workflow to automatically deploy the application to GitHub Pages.
