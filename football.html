@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Odum Soccer – Maximum Empower Simulation</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: #0b0b0b;
+            color: #eee;
+            font-family: system-ui, sans-serif;
+        }
+
+        #layout {
+            display: grid;
+            grid-template-columns: 240px 1fr 240px;
+            height: 100vh;
+        }
+
+        team-panel {
+            background: #111;
+            padding: 8px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        soccer-pitch {
+            display: block;
+            position: relative;
+            background: #3a9f55;
+        }
+
+        #topbar {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 16px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 12px;
+            border-radius: 6px;
+            z-index: 10;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 12px;
+            border-radius: 6px;
+            z-index: 10;
+        }
+
+        .player {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+        }
+
+        .A {
+            background: #e33;
+        }
+
+        .B {
+            background: #33f;
+        }
+
+        .ball {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="layout">
+        <team-panel id="teamA" team="A"></team-panel>
+        <soccer-pitch></soccer-pitch>
+        <team-panel id="teamB" team="B"></team-panel>
+    </div>
+
+    <script>
+        /* ------------------ Utilities ------------------ */
+
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+        /* ------------------ Coach ------------------ */
+
+        class Coach {
+            constructor(team) {
+                this.team = team;
+                this.transformity = 12;
+                this.phase = "attack"; // attack / defend
+            }
+
+            update(game) {
+                // phase depends on ball position
+                this.phase = (game.ball.x < game.width / 2) === (this.team === "A")
+                    ? "defend"
+                    : "attack";
+            }
+        }
+
+        /* ------------------ Player ------------------ */
+
+        class Player {
+            constructor(team, role, anchor) {
+                this.team = team;
+                this.role = role;
+                this.anchor = anchor;
+
+                this.power = 100 + Math.random() * 40;
+                this.transformity = role.transformity;
+                this.fatigue = 0;
+
+                this.x = anchor.x + Math.random() * 10;
+                this.y = anchor.y + Math.random() * 10;
+
+                this.el = document.createElement("div");
+                this.el.className = `player ${team}`;
+            }
+
+            get empower() {
+                return this.power * this.transformity;
+            }
+
+            canPress(coach) {
+                if (coach.phase === "defend") return this.role.press;
+                return this.role.attackPress;
+            }
+
+            update(game, coach) {
+                this.power = Math.max(40, this.power - 0.01 * game.speed);
+
+                const target = this.canPress(coach) &&
+                    dist(this, game.ball) < this.role.pressRadius
+                    ? game.ball
+                    : this.anchor;
+
+                const d = dist(this, target);
+                if (d > 1) {
+                    const step = 0.03 * this.power * game.speed;
+                    this.x += (target.x - this.x) / d * step;
+                    this.y += (target.y - this.y) / d * step;
+                }
+
+                this.x = clamp(this.x, 0, game.width);
+                this.y = clamp(this.y, 0, game.height);
+
+                this.el.style.left = this.x + "px";
+                this.el.style.top = this.y + "px";
+            }
+        }
+
+        /* ------------------ Ball ------------------ */
+
+        class Ball {
+            constructor(w, h) {
+                this.x = w / 2;
+                this.y = h / 2;
+                this.vx = 0;
+                this.vy = 0;
+                this.el = document.createElement("div");
+                this.el.className = "ball";
+            }
+
+            update(game) {
+                this.x += this.vx * game.speed;
+                this.y += this.vy * game.speed;
+                this.vx *= 0.96;
+                this.vy *= 0.96;
+                this.x = clamp(this.x, 0, game.width);
+                this.y = clamp(this.y, 0, game.height);
+                this.el.style.left = this.x + "px";
+                this.el.style.top = this.y + "px";
+            }
+        }
+
+        /* ------------------ Web Components ------------------ */
+
+        customElements.define("team-panel", class extends HTMLElement {
+            connectedCallback() {
+                this.innerHTML = `<h3>Team ${this.getAttribute("team")}</h3><div></div>`;
+                this.list = this.querySelector("div");
+            }
+
+            update(players) {
+                this.list.innerHTML = players.map(p =>
+                    `${p.role.name} | P:${p.power.toFixed(0)} T:${p.transformity} E:${p.empower.toFixed(0)}`
+                ).join("<br>");
+            }
+        });
+
+        customElements.define("soccer-pitch", class extends HTMLElement {
+            connectedCallback() {
+                this.width = this.clientWidth;
+                this.height = this.clientHeight;
+
+                this.innerHTML = `
+      <div id="topbar">
+        <span id="clock">00:00</span>
+        <span id="score">0 – 0</span>
+      </div>
+      <div id="controls">
+        Speed <input type="range" min="0.5" max="3" step="0.1" value="1">
+      </div>
+    `;
+
+                this.clockEl = this.querySelector("#clock");
+                this.scoreEl = this.querySelector("#score");
+                this.speedSlider = this.querySelector("input");
+
+                this.speed = 1;
+                this.speedSlider.oninput = e => this.speed = +e.target.value;
+
+                this.coaches = { A: new Coach("A"), B: new Coach("B") };
+
+                this.roles = {
+                    GK: { name: "GK", transformity: 2, press: false, attackPress: false, pressRadius: 0 },
+                    DEF: { name: "DEF", transformity: 3, press: true, attackPress: false, pressRadius: 60 },
+                    MID: { name: "MID", transformity: 5, press: true, attackPress: true, pressRadius: 80 },
+                    FWD: { name: "FWD", transformity: 6, press: false, attackPress: true, pressRadius: 100 }
+                };
+
+                this.players = [];
+                this.spawnTeam("A", 80);
+                this.spawnTeam("B", this.width - 80);
+
+                this.ball = new Ball(this.width, this.height);
+                this.appendChild(this.ball.el);
+
+                this.time = 0;
+                this.score = { A: 0, B: 0 };
+
+                requestAnimationFrame(() => this.tick());
+            }
+
+            spawnTeam(team, xBase) {
+                const yStep = this.height / 6;
+                const roles = ["GK", "DEF", "DEF", "MID", "MID", "FWD"];
+                roles.forEach((r, i) => {
+                    const anchor = { x: xBase, y: yStep * (i + 1) };
+                    const p = new Player(team, this.roles[r], anchor);
+                    this.players.push(p);
+                    this.appendChild(p.el);
+                });
+            }
+
+            resolvePossession() {
+                const near = this.players.filter(p => dist(p, this.ball) < 18);
+                if (!near.length) return;
+                const total = near.reduce((s, p) => s + p.empower, 0);
+                let r = Math.random() * total;
+                for (let p of near) {
+                    r -= p.empower;
+                    if (r <= 0) {
+                        const dir = p.team === "A" ? 1 : -1;
+                        this.ball.vx = dir * (2 + p.transformity * 0.2);
+                        this.ball.vy = (Math.random() - 0.5) * 2;
+                        break;
+                    }
+                }
+            }
+
+            tick() {
+                this.time += this.speed;
+                this.clockEl.textContent =
+                    `${Math.floor(this.time / 60).toString().padStart(2, "0")}:${Math.floor(this.time % 60).toString().padStart(2, "0")}`;
+
+                this.coaches.A.update(this);
+                this.coaches.B.update(this);
+
+                this.players.forEach(p => p.update(this, this.coaches[p.team]));
+                this.resolvePossession();
+                this.ball.update(this);
+
+                document.getElementById("teamA").update(this.players.filter(p => p.team === "A"));
+                document.getElementById("teamB").update(this.players.filter(p => p.team === "B"));
+
+                requestAnimationFrame(() => this.tick());
+            }
+        });
+    </script>
+
+</body>
+
+</html>
