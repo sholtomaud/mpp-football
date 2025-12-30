@@ -78,3 +78,4 @@ This document breaks down the features from `REQUIREMENTS.md` into actionable ta
 - [ ] **Code Organization:** As the codebase grows, refactor the JavaScript into separate files using ES6 Modules.
 - [ ] **Pitch Geometry:** Implement pitch markings (penalty boxes, center circle) as actual control geometry that influences player behavior, not just as decoration.
 - [ ] **GitHub Actions Deployment:** Set up a GitHub Actions workflow to automatically deploy the application to GitHub Pages.
+- [ ] **Continuous Integration:** Add a testing step to the GitHub Actions workflow to run automated tests on every push.
