@@ -1,0 +1,12 @@
+{
+  "name": "odum-soccer",
+  "version": "1.0.0",
+  "description": "A football simulation game to demonstrate Howard T. Odum’s Maximum Empower Principle.",
+  "main": "football.html",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.1"
+  }
+}
